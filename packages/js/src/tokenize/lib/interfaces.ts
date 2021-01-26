@@ -22,7 +22,9 @@ export interface IOptionsTokenizeJS {
   // backTicks?: boolean
   // singleQuotes?: boolean
   // doubleQuotes?: boolean
+  spaces?: boolean
   regexp?: boolean
+  comments?: boolean
   customTemplate?: boolean | [string | RegExp, string | RegExp]
   jsx?: boolean
   strict?: boolean

@@ -1,3 +1,3 @@
-import preciseTokenize from './tokenize/index'
+import preciseTokenize from './tokenize'
 export { preciseTokenize }
 export default preciseTokenize

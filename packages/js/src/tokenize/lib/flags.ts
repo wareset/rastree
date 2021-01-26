@@ -41,6 +41,10 @@ export const LITERAL = 'Literal'
 export const NULL = 'Null'
 export { NULL as TYPE_NULL }
 
+export const INFINITY = 'Infinity'
+export const NAN = 'NaN'
+export const UNDEFINED = 'Undefined'
+
 /* BOOLEAN */
 export const BOOLEAN = 'Boolean'
 export { BOOLEAN as TYPE_BOOLEAN }
@@ -108,17 +112,19 @@ export const TYPE_CUSTOM_TEMPLATE = 'CustomTemplate'
 /*
 JSX
 */
-export const INSIDE_JSX = 'InsideJSX'
+export const JSX_ELEMENT = 'JSXElement'
+export const JSX_ATTRIBUTE = 'JSXAtribute'
+// export const JSX_IDENTIFIER = 'JSXIdentifier'
 
-export const INSIDE_JSX_TAG_OPENING = 'InsideJSXTagOpening'
-export const JSX_TAG_OPENING_START = 'JSXTagOpeningStart'
-export const JSX_TAG_OPENING_END = 'JSXTagOpeningEnd'
+export const JSX_OPENING_ELEMENT = 'JSXOpeningElement'
+export const JSX_OPENING_ELEMENT_START = 'JSXOpeningElementStart'
+export const JSX_OPENING_ELEMENT_END = 'JSXOpeningElementEnd'
 
-export const INSIDE_JSX_TAG_CLOSING = 'InsideJSXTagClosing'
-export const JSX_TAG_CLOSING_START = 'JSXTagClosingStart'
-export const JSX_TAG_CLOSING_END = 'JSXTagClosingEnd'
+export const JSX_CLOSING_ELEMENT = 'JSXClosingElement'
+export const JSX_CLOSING_ELEMENT_START = 'JSXClosingElementStart'
+export const JSX_CLOSING_ELEMENT_END = 'JSXClosingElementEnd'
 
-export const INSIDE_JSX_TEMPLATE_START = 'InsideJSXTemplateStart'
-export const INSIDE_JSX_TEMPLATE_END = 'InsideJSXTemplateEnd'
-export const INSIDE_JSX_TEMPLATE = 'InsideJSXTemplate'
+export const JSX_EXPRESSION_CONTAINER_START = 'JSXExpressionContainerStart'
+export const JSX_EXPRESSION_CONTAINER_END = 'JSXExpressionContainerEnd'
+export const JSX_EXPRESSION_CONTAINER = 'JSXExpressionContainer'
 export const JSX_TEXT = 'JSXText'

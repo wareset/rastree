@@ -12,21 +12,6 @@ import { getCharAt } from './lib/utils'
 import { Token, IOptionsTokenizeJS } from './lib/interfaces'
 import createCustomTemplatePatterns from './lib/custom-template'
 
-// import { TOKENS, SOURCE, LENGTH } from './lib/keys'
-// import { INDEX, STATE } from './lib/keys'
-// import { TEMP, TEMP_TEMPLATE, TEMP_JSX } from './lib/keys'
-// import { CHAR_PREV, CHAR, CHAR_NEXT } from './lib/keys'
-// import { DEEP, RAW, TYPE, FLAGS, FLAG } from './lib/keys'
-// import { IS_BACKSLASH, EOF } from './lib/keys'
-// import { TOKEN, TOKEN_LAST } from './lib/keys'
-// import { LINE, COLUMN, TEMP_LINE, TEMP_COLUMN, TEMP_BRACKETS } from './lib/keys'
-// import { OPTIONS_RANGE, OPTIONS_LOC } from './lib/keys'
-// import { OPTIONS_JSX, OPTIONS_REGEXP } from './lib/keys'
-// import { CUSTOM_TPL, TEMP_CUSTOM_TPL_DEEP } from './lib/keys'
-// import { TEMP_JSX_TAG_OPENER, TEMP_JSX_TAG_CLOSER } from './lib/keys'
-
-// console.log(DEEP, VALUE, TOKEN)
-
 /* ERROR */
 import { ERROR } from './lib/flags'
 
@@ -120,6 +105,7 @@ import { isFormatControl, getFormatControlCodePoint } from './lexical-grammar/fo
 
 /* IDENTIFIER */
 import { TYPE_IDENTIFIER } from './lib/flags'
+import { INFINITY, NAN, UNDEFINED } from './lib/flags'
 
 /*
 KEYWORD
@@ -136,16 +122,18 @@ import { RESERVED_WORD_CONTEXTUAL, WORD_CONTEXTUAL, WORD_CONTEXTUAL_STRICT } fro
 JSX
 */
 import {
-  INSIDE_JSX,
-  INSIDE_JSX_TAG_OPENING,
-  JSX_TAG_OPENING_START,
-  JSX_TAG_OPENING_END,
-  INSIDE_JSX_TAG_CLOSING,
-  JSX_TAG_CLOSING_START,
-  JSX_TAG_CLOSING_END,
-  INSIDE_JSX_TEMPLATE_START,
-  INSIDE_JSX_TEMPLATE_END,
-  INSIDE_JSX_TEMPLATE,
+  JSX_ELEMENT,
+  JSX_ATTRIBUTE,
+  // JSX_IDENTIFIER,
+  JSX_OPENING_ELEMENT,
+  JSX_OPENING_ELEMENT_START,
+  JSX_OPENING_ELEMENT_END,
+  JSX_CLOSING_ELEMENT,
+  JSX_CLOSING_ELEMENT_START,
+  JSX_CLOSING_ELEMENT_END,
+  JSX_EXPRESSION_CONTAINER_START,
+  JSX_EXPRESSION_CONTAINER_END,
+  JSX_EXPRESSION_CONTAINER,
   JSX_TEXT
 } from './lib/flags'
 
@@ -155,19 +143,18 @@ export const OPTIONS_TOKENIZE_JS: IOptionsTokenizeJS = {
   // backTicks: true,
   // singleQuotes: true,
   // doubleQuotes: true,
+  spaces: false,
   regexp: true,
+  comments: false,
   customTemplate: false,
   jsx: true,
   strict: true
 }
 
-const BRACKETS: any = {
-  '}': '{',
-  ')': '(',
-  ']': '['
-}
+const BRACKETS: any = { '}': '{', ')': '(', ']': '[' }
 const QUOTES_OPENERS = values(BRACKETS)
 const QUOTES_CLOSERS = keys(BRACKETS)
+const DUMMY_TOKEN_TYPES = [TYPE_COMMENT, TYPE_WHITE_SPACE, TYPE_LINE_TERMINATOR]
 const isDigit = (s: string): boolean => test(/^\d$/, s)
 
 export const presizeTokenize = (
@@ -178,10 +165,12 @@ export const presizeTokenize = (
 
   const tokens: any[] = []
   if (source) {
-    const OPTIONS_RANGE = options.range
-    const OPTIONS_LOC = options.loc
-    const OPTIONS_JSX = options.jsx
-    const OPTIONS_REGEXP = options.regexp
+    const optionsRANGE = options.range
+    const optionsLOC = options.loc
+    const optionsJSX = options.jsx
+    const optionsSPACES = options.spaces
+    const optionsCOMMENTS = options.comments
+    const optionsREGEXP = options.regexp
     // prettier-ignore
     const CUSTOM_TPL: any = createCustomTemplatePatterns((options as any).customTemplate)
     let TEMP_CUSTOM_TPL_DEEP = 1
@@ -242,16 +231,26 @@ export const presizeTokenize = (
     }
 
     const insideJSX = (): any => {
-      if (OPTIONS_JSX) {
+      if (optionsJSX) {
         const flags = TOKEN.flags
-        if (size(TEMP_JSX) && !includes(flags, INSIDE_JSX)) {
-          flags.push(INSIDE_JSX)
+        if (size(TEMP_JSX) && !includes(flags, JSX_ELEMENT)) {
+          flags.push(JSX_ELEMENT)
         }
-        if (TEMP_JSX_TAG_OPENER && !includes(flags, INSIDE_JSX_TAG_OPENING)) {
-          flags.push(INSIDE_JSX_TAG_OPENING)
+        if (TEMP_JSX_TAG_OPENER && !includes(flags, JSX_OPENING_ELEMENT)) {
+          flags.push(JSX_OPENING_ELEMENT)
         }
-        if (TEMP_JSX_TAG_CLOSER && !includes(flags, INSIDE_JSX_TAG_CLOSING)) {
-          flags.push(INSIDE_JSX_TAG_CLOSING)
+        if (TEMP_JSX_TAG_CLOSER && !includes(flags, JSX_CLOSING_ELEMENT)) {
+          flags.push(JSX_CLOSING_ELEMENT)
+        }
+
+        if (
+          TEMP_JSX[0] === DEEP &&
+          TOKEN.raw === '=' &&
+          (TEMP_JSX_TAG_OPENER || JSX_CLOSING_ELEMENT) &&
+          TOKEN_LAST &&
+          TOKEN_LAST.type === TYPE_IDENTIFIER
+        ) {
+          TOKEN_LAST.type = JSX_ATTRIBUTE
         }
       }
     }
@@ -272,7 +271,7 @@ export const presizeTokenize = (
         value = createRegularExpressionValue(value)
       } else if (!type) {
         type = TYPE_IDENTIFIER
-        const push = (...s: string[]): void => flags.push(...s)
+        const push = (...s: string[]): boolean => !!flags.push(...s)
 
         if (isNullLiteral(value)) {
           ;(type = TYPE_NULL), (value = null), push(LITERAL)
@@ -316,6 +315,9 @@ export const presizeTokenize = (
           if (isReservedWordContextual(value)) push(RESERVED_WORD_CONTEXTUAL)
           else if (isWordContextual(value)) push(WORD_CONTEXTUAL)
           else if (isWordContextualStrict(value)) push(WORD_CONTEXTUAL_STRICT)
+          else if (value === INFINITY) push(INFINITY), (value = Infinity)
+          else if (value === 'NaN') push(NAN), (value = NaN)
+          else if (value === 'undefined') push(UNDEFINED), (value = undefined)
         }
       }
 
@@ -329,20 +331,21 @@ export const presizeTokenize = (
 
         setValueTypeFlag()
 
-        if (OPTIONS_RANGE) {
+        if (optionsRANGE) {
           TOKEN.range = [TOKEN.start, TOKEN.end]
         }
 
-        if (OPTIONS_LOC) {
+        if (optionsLOC) {
           TOKEN.loc.end = { line: LINE, column: COLUMN }
         }
 
         insideJSX()
+
+        TOKEN = null
       }
     }
 
     const saveToken = (): any => {
-      // console.log(['saveToken', TOKEN && TOKEN.raw, RAW])
       if (TOKEN) {
         TOKEN.raw = RAW
         if (FLAG) TOKEN.flags.push(FLAG)
@@ -369,34 +372,33 @@ export const presizeTokenize = (
             ? DEEP++
             : DEEP)
 
-    const DUMMY_TOKEN_TYPES = [
-      TYPE_COMMENT,
-      TYPE_WHITE_SPACE,
-      TYPE_LINE_TERMINATOR
-    ]
-    const initToken = (): any => {
+    const initToken = (pushed = true): any => {
       saveLastToken()
 
       if (RAW) {
-        // prettier-ignore
-        TOKENS.push((TOKEN = new Token(setDeep(), RAW, TYPE, (FLAGS = []))))
+        TOKEN = new Token(setDeep(), RAW, TYPE, (FLAGS = []))
         TOKEN.start = INDEX
 
-        insideJSX()
+        if (pushed) {
+          TOKENS.push(TOKEN)
 
-        if (size(TEMP_TEMPLATE)) {
-          TOKEN.flags.push(INSIDE_TEMPLATE)
+          if (size(TEMP_TEMPLATE)) {
+            TOKEN.flags.push(INSIDE_TEMPLATE)
+          }
+          if (TEMP_JSX[0] < DEEP - 1) {
+            TOKEN.flags.push(JSX_EXPRESSION_CONTAINER)
+          }
         }
-        if (TEMP_JSX[0] < DEEP - 1) {
-          TOKEN.flags.push(INSIDE_JSX_TEMPLATE)
-        }
-        if (OPTIONS_LOC) {
+
+        if (optionsLOC) {
           TOKEN.loc = { start: { line: LINE, column: COLUMN } }
         }
 
+        insideJSX()
+
         if (!includes(DUMMY_TOKEN_TYPES, TYPE)) TOKEN_LAST = TOKEN
       }
-      // console.log('initToken', RAW, TYPE, FLAG)
+
       return true
     }
 
@@ -408,8 +410,7 @@ export const presizeTokenize = (
 
     // prettier-ignore
     const __mayBeNotDivider__ = (): boolean =>
-      !TOKEN_LAST ||
-      /case|return/.test(TOKEN_LAST.raw) ||
+      !TOKEN_LAST || /case|return/.test(TOKEN_LAST.raw) ||
       (TOKEN_LAST.type === TYPE_PUNCTUATOR && /[^.})\]]$/i.test(TOKEN_LAST.raw))
 
     /* IS_BACKSLASH */
@@ -419,86 +420,84 @@ export const presizeTokenize = (
     const doInitialize = (): boolean =>
       initialize() && !quessBackslash() && !EOF
 
-    /* CUSTOM_TEMPLATE */
+    /*
+    CUSTOM_TEMPLATE
+    */
     const createCustomTemplate = (): any => {
       DEEP = 0
       if (!TOKEN || TOKEN.type !== TYPE_CUSTOM_TEMPLATE) initToken()
       else RAW = TOKEN.raw + RAW
 
       let temp
-      const regFQ = CUSTOM_TPL
       do {
         temp =
-          regFQ[0].test(RAW) &&
-          regFQ[2].test(RAW + CHAR_NEXT) &&
-          !regFQ[0].test(RAW + CHAR_NEXT)
+          CUSTOM_TPL[0].test(RAW) &&
+          CUSTOM_TPL[2].test(RAW + CHAR_NEXT) &&
+          !CUSTOM_TPL[0].test(RAW + CHAR_NEXT)
 
         if (temp && DEEP) temp = false
         if (!temp) doInitialize()
         else saveToken(), DEEP++
       } while (!temp && !EOF)
-      if (regFQ[3]) {
+      if (CUSTOM_TPL[3]) {
         DEEP = TEMP_CUSTOM_TPL_DEEP
         TEMP_CUSTOM_TPL_DEEP = +!DEEP
       }
     }
     // prettier-ignore
     const quessCustomTemplate = (): any =>
-      DEEP < 2 &&
-      (!DEEP || EOF || test(CUSTOM_TPL[1],
+      DEEP < 2 && (!DEEP || EOF || test(CUSTOM_TPL[1],
         SOURCE.slice(INDEX, INDEX + size(CUSTOM_TPL[1].source)))) &&
       (TYPE = TYPE_CUSTOM_TEMPLATE) &&
       !createCustomTemplate()
 
-    /* JSX */
+    /*
+    JSX
+    */
     /* JSX CLOSING TAG */
     const createJsxClosingTag = (): any => {
-      TYPE = JSX_TAG_CLOSING_START
+      TYPE = JSX_CLOSING_ELEMENT_START
       DEEP--, initToken(), initialize(), saveToken()
+      // TYPE = JSX_IDENTIFIER
       TEMP_JSX.shift(), (TEMP_JSX_TAG_OPENER = false)
       TEMP_JSX.unshift(DEEP), (TEMP_JSX_TAG_CLOSER = true)
     }
     // prettier-ignore
     const quessJsxClosingTag = (): any =>
-      CHAR === '<' && CHAR_NEXT === '/' &&
-      TEMP_JSX[0] === DEEP - 1 && !createJsxClosingTag()
+      CHAR === '<' && CHAR_NEXT === '/' && TEMP_JSX[0] === DEEP - 1 && !createJsxClosingTag()
 
     /* JSX CLOSE CHILDLESS TAG OR CLOSER TAG */
     const createJsxClosingChildless = (): any => {
-      // prettier-ignore
-      TYPE = TEMP_JSX_TAG_CLOSER ? JSX_TAG_CLOSING_END : JSX_TAG_OPENING_END
+      TYPE = TEMP_JSX_TAG_CLOSER
+        ? JSX_CLOSING_ELEMENT_END
+        : JSX_OPENING_ELEMENT_END
       DEEP--, initToken(), saveToken(), TEMP_JSX.shift()
       if (TEMP_JSX_TAG_CLOSER) TEMP_JSX_TAG_CLOSER = false
       else TEMP_JSX_TAG_OPENER = false
     }
     // prettier-ignore
     const quessJsxClosingChildless = (): any =>
-      TEMP_JSX[0] === DEEP &&
-      ((TEMP_JSX_TAG_CLOSER && CHAR === '>') ||
-        (TEMP_JSX_TAG_OPENER &&
-          CHAR === '/' && CHAR_NEXT === '>' && initialize())) &&
+      TEMP_JSX[0] === DEEP && ((TEMP_JSX_TAG_CLOSER && CHAR === '>') ||
+        (TEMP_JSX_TAG_OPENER && CHAR === '/' && CHAR_NEXT === '>' && initialize())) &&
       !createJsxClosingChildless()
 
     /* JSX OPENING TAG */
     const createJsxOpeningTag = (): any => {
-      TYPE = JSX_TAG_OPENING_START
+      TYPE = JSX_OPENING_ELEMENT_START
       initToken(), saveToken(), DEEP++
+      // TYPE = JSX_IDENTIFIER
       TEMP_JSX.unshift(DEEP), (TEMP_JSX_TAG_OPENER = true)
     }
     // prettier-ignore
     const quessJsxOpeningTag = (): any =>
-      CHAR === '<' &&
-      !TEMP_JSX_TAG_OPENER && !TEMP_JSX_TAG_CLOSER &&
-      CHAR_NEXT.trim() &&
-      (TEMP_JSX[0] === DEEP - 1 || __mayBeNotDivider__()) &&
+      CHAR === '<' && !TEMP_JSX_TAG_OPENER && !TEMP_JSX_TAG_CLOSER &&
+      CHAR_NEXT.trim() && (TEMP_JSX[0] === DEEP - 1 || __mayBeNotDivider__()) &&
       !createJsxOpeningTag()
 
     /* JSX CLOSE OPENING TAG OR INSIDE TAG CONTENT */
     const createJsxCloseOpeningTagOrContent = (): any => {
       initToken(), saveToken()
-      if (TOKEN_LAST.raw === '>') {
-        DEEP++, (TEMP_JSX_TAG_OPENER = false)
-      }
+      if (TOKEN_LAST.raw === '>') DEEP++, (TEMP_JSX_TAG_OPENER = false)
       TEMP = false
       // prettier-ignore
       $: while (!EOF) {
@@ -512,21 +511,20 @@ export const presizeTokenize = (
         initToken(), saveToken()
       }
       if (TEMP) {
-        TYPE = INSIDE_JSX_TEMPLATE_START
+        TYPE = JSX_EXPRESSION_CONTAINER_START
         initialize(), initToken(), saveToken(), DEEP++
       }
     }
     // prettier-ignore
     const quessJsxCloseOpeningTagOrContent = (): any =>
-      ((CHAR === '>' &&
-        TEMP_JSX[0] === DEEP && (TYPE = JSX_TAG_OPENING_END)) ||
-        (CHAR === '}' &&
-          !TEMP_JSX_TAG_OPENER && !TEMP_JSX_TAG_CLOSER &&
-          TEMP_JSX[0] === DEEP - 2 && DEEP-- &&
-          (TYPE = INSIDE_JSX_TEMPLATE_END))) &&
+      ((CHAR === '>' && TEMP_JSX[0] === DEEP && (TYPE = JSX_OPENING_ELEMENT_END)) ||
+        (CHAR === '}' && !TEMP_JSX_TAG_OPENER && !TEMP_JSX_TAG_CLOSER &&
+          TEMP_JSX[0] === DEEP - 2 && DEEP-- && (TYPE = JSX_EXPRESSION_CONTAINER_END))) &&
       !createJsxCloseOpeningTagOrContent()
 
-    /* TEMPLATE */
+    /*
+    TEMPLATE
+    */
     const createTemplate = (): any => {
       initToken()
       FLAGS.push(LITERAL)
@@ -545,14 +543,13 @@ export const presizeTokenize = (
     }
     // prettier-ignore
     const quessTemplate = (): any =>
-      !TYPE &&
-      ((TEMP = CHAR === '`') ||
-        (CHAR === '}' &&
-          TEMP_TEMPLATE[0] === DEEP && DEEP-- &&
-          !(TEMP_TEMPLATE.shift() * 0))) &&
+      ((TEMP = CHAR === '`') || (CHAR === '}' &&
+        TEMP_TEMPLATE[0] === DEEP && DEEP-- && !(TEMP_TEMPLATE.shift() * 0))) &&
       (TYPE = TYPE_TEMPLATE) && !createTemplate()
 
-    /* STRING */
+    /*
+    STRING
+    */
     const createString = (): any => {
       initToken()
       FLAGS.push(LITERAL)
@@ -565,9 +562,11 @@ export const presizeTokenize = (
     const quessString = (): any =>
       ((TEMP = CHAR === '"') || CHAR === "'") && (TYPE = TYPE_STRING) && !createString()
 
-    /* COMMENT */
+    /*
+    COMMENT
+    */
     const createComment = (): any => {
-      initToken()
+      initToken(optionsCOMMENTS)
       // prettier-ignore
       FLAG = TEMP ? MULTI_LINE_COMMENT : SINGLE_LINE_COMMENT
       initialize(TEMP ? 3 : 1)
@@ -582,7 +581,9 @@ export const presizeTokenize = (
       CHAR === '/' && ((TEMP = CHAR_NEXT === '*') || CHAR_NEXT === '/') &&
       (TYPE = TYPE_COMMENT) && !createComment()
 
-    /* REGULAR_EXPRESSION */
+    /*
+    REGULAR_EXPRESSION
+    */
     const createRegularExpression = (): any => {
       initToken()
       FLAGS.push(LITERAL)
@@ -599,15 +600,15 @@ export const presizeTokenize = (
       CHAR === '/' && __mayBeNotDivider__() &&
       (TYPE = TYPE_REGULAR_EXPRESSION) && !createRegularExpression()
 
-    /* PUNCTUATOR */
+    /*
+    PUNCTUATOR
+    */
     const createPunctuator = (): any => {
       initToken()
       if (CHAR === '.') {
         // prettier-ignore
         if (CHAR === CHAR_NEXT && CHAR === getCharAt(SOURCE, INDEX + 2)) initialize(2)
-      } else {
-        while (isPunctuator(RAW + CHAR_NEXT) && doInitialize());
-      }
+      } else while (isPunctuator(RAW + CHAR_NEXT) && doInitialize());
       saveToken()
     }
     // prettier-ignore
@@ -615,37 +616,38 @@ export const presizeTokenize = (
       isPunctuator(RAW) && (TYPE = TYPE_PUNCTUATOR) && !createPunctuator()
 
     /*
-    SYSTEM_CHARACTERS
+    SPACE_CHARACTERS
     */
     // prettier-ignore
-    const createSystemCharacters = ( __type__: any, __flagsFn__: any): any => {
+    const createSpaceCharacters = ( __type__: any, __flagsFn__: any): any => {
       TYPE = __type__
-      initToken()
+      initToken(optionsSPACES)
       FLAGS.push(...__flagsFn__(CHAR))
       while (CHAR === CHAR_NEXT && doInitialize());
       saveToken()
     }
     /* LINE_TERMINATOR */
-    // prettier-ignore
     const quessLineTerminator = (): any =>
       isLineTerminator(CHAR) &&
-      !createSystemCharacters(TYPE_LINE_TERMINATOR, getLineTerminatorCodePoint)
+      !createSpaceCharacters(TYPE_LINE_TERMINATOR, getLineTerminatorCodePoint)
     /* WHITE_SPACE */
-    // prettier-ignore
     const quessWhiteSpace = (): any =>
       isWhiteSpace(CHAR) &&
-      !createSystemCharacters(TYPE_WHITE_SPACE, getWhiteSpaceCodePoint)
+      !createSpaceCharacters(TYPE_WHITE_SPACE, getWhiteSpaceCodePoint)
     /* FORMAT_CONTROL */
-    // prettier-ignore
     const quessFormatControl = (): any =>
       isFormatControl(CHAR) &&
-      !createSystemCharacters(TYPE_FORMAT_CONTROL, getFormatControlCodePoint)
+      !createSpaceCharacters(TYPE_FORMAT_CONTROL, getFormatControlCodePoint)
 
-    /* NUMERIC */
+    /*
+    FIXES
+    */
+    /* FIX_NUMERIC */
     const createFixNumeric = (
       char2 = getCharAt(SOURCE, INDEX + 2),
       char3 = getCharAt(SOURCE, INDEX + 3)
     ): any => {
+      // prettier-ignore
       if (CHAR === '.') {
         if (isDigit(CHAR_NEXT)) initialize()
         else if (isDigit(CHAR_PREV) && test(/[eE]/, CHAR_NEXT)) {
@@ -674,7 +676,7 @@ export const presizeTokenize = (
         /* CUSTOM_TEMPLATE */
         (CUSTOM_TPL && quessCustomTemplate()) ||
         /* JSX */
-        (OPTIONS_JSX && (quessJsxClosingTag() || quessJsxClosingChildless() ||
+        (optionsJSX && (quessJsxClosingTag() || quessJsxClosingChildless() ||
         quessJsxOpeningTag() || quessJsxCloseOpeningTagOrContent())) ||
         /* TEMPLATE */
         quessTemplate() ||
@@ -683,7 +685,7 @@ export const presizeTokenize = (
         /* COMMENT */
         guessComment() ||
         /* REGULAR_EXPRESSION */
-        (OPTIONS_REGEXP && guessRegularExpression()) ||
+        (optionsREGEXP && guessRegularExpression()) ||
         /* LINE_TERMINATOR */
         quessLineTerminator() ||
         /* WHITE_SPACE */

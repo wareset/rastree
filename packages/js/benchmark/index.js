@@ -79,9 +79,7 @@ http
 
         console.time('tokensRastree')
         // const tokensRastree = rastree.tokenize('let   a \n\n= 112')
-        tokensRastree = rastree
-          .tokenize(content)
-          .filter((v) => v.raw.trim() && v.type !== 'Comment')
+        tokensRastree = rastree.tokenize(content)
         // .map((v) => v.loc)
         console.log('tokensRastree')
         console.log(+tokensRastree)
@@ -98,7 +96,10 @@ http
         console.timeEnd('tokensEsprima')
 
         tokensEsprima.forEach((v, k) => {
-          if (stringly(v.loc) !== stringly(tokensRastree[k].loc)) {
+          if (
+            stringly(v.loc) !== stringly(tokensRastree[k].loc) ||
+            v.type !== tokensRastree[k].type
+          ) {
             console.log(k)
             console.log(tokensRastree[k])
             console.log(v)

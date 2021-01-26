@@ -23,7 +23,7 @@ https://tc39.es/ecma262/#sec-literals-numeric-literals
 // const reg = /^(\d|[1-9]\d*(?:_\d+)*(?:\.(?!$)?)|\.\d+(_\d+)*)([eE][-+]?\d+(_\d+)*)?$/
 
 const __NSP__ = '(?:_\\d+)*'
-const __DIL__ = '(?:\\d|[1-9]\\d*' + __NSP__ + ')'
+const __DIL__ = '(?:\\d|(?:(?<!^)0|[1-9])\\d*' + __NSP__ + ')'
 // prettier-ignore
 const __DL__ =
   `(?:${__DIL__}(?:\\.(?!$))?|(?:${__DIL__})?\\.${__DIL__})` +
@@ -89,11 +89,12 @@ export const createNumber = (s: string): number =>
 export const isNumericLiteral = (s: string): boolean =>
   !!(
     ((last(s) === 'n' && (s = slice(s, 0, -1))) || s) &&
-    (test(/^0[a-z][_\d]+$/, s) || isDecimalLiteral(s)) &&
+    // (test(/^0[\w]+$/, s) || isDecimalLiteral(s)) &&
+    test(/^[.\d]/, s) &&
     !isNaN(createNumber(s))
   )
 
 export const createNumericLiteralValue = (value: string): any =>
   last(value) !== 'n'
     ? createNumber(value)
-    : trycatch(() => BigInt(createNumber(slice(value, 0, -1))), value)
+    : trycatch(() => BigInt(createNumber(slice(value, 0, -1))), value, false)

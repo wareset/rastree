@@ -1,2 +1,2 @@
 # rastree
-WIP: AST for html, css and js
+WIP: ReaseASTree for CSS, HTML, JS, JSX

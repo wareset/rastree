@@ -19,7 +19,7 @@ export const typingIdentifier: ITokenizerTypingFn = () => (
   if (!token.type!) {
     token.type = TYPE_IDENTIFIER
     let value: any = token.raw
-    const push = (v: string): any => token.flags.push(v)
+    const push = token.setFlags.bind(token)
 
     if (isReservedWordContextual(value)) push(RESERVED_WORD_CONTEXTUAL)
     else if (isWordContextual(value)) push(WORD_CONTEXTUAL)

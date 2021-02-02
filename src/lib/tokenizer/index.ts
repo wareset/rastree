@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { size } from 'wareset-utilites'
+import { defineProperty, size, includes, indexOf } from 'wareset-utilites'
 
 export type IToken = Token
 export type ITokens = Token[]
@@ -35,24 +35,55 @@ const TOKENIZER_OPTIONS: ITokenizerOptions = {
   strict: true
 }
 
+type ILoc = {
+  start: { line: number; column: number }
+  end: { line: number; column: number }
+}
+
 export class Token {
+  readonly id!: number
+
+  readonly range = [-1, -1]
+  public loc?: ILoc
+
   constructor(
     public deep: number,
     public raw: string,
     public type?: string,
     public flags: string[] = [],
     public value?: any,
-    public start: number = -1,
-    public end: number = -1,
-    public loc?: {
-      start: { line: number; column: number }
-      end: { line: number; column: number }
-    }
-  ) {}
-
-  get range(): [number, number] {
-    return [this.start, this.end]
+    // public start: number = -1,
+    // public end: number = -1,
+    loc?: ILoc
+  ) {
+    if (loc) this.loc = loc
   }
+
+  get start(): number {
+    return this.range[0]
+  }
+  set start(n: number) {
+    this.range[0] = n
+  }
+
+  get end(): number {
+    return this.range[1]
+  }
+  set end(n: number) {
+    this.range[1] = n
+  }
+
+  setFlags(...flags: string[]): number {
+    return this.flags.push(...flags)
+  }
+
+  hasFlag(flag: string): boolean {
+    return includes(this.flags, flag)
+  }
+
+  // get range(): [number, number] {
+  //   return [this.start, this.end]
+  // }
 }
 
 const error = (self: any, ...a: any[]): any => {
@@ -61,8 +92,10 @@ const error = (self: any, ...a: any[]): any => {
 
 export class Tokenizer {
   readonly tokens: ITokens = []
+  readonly options: ITokenizerOptions
   public token!: IToken
-  public tokenLast!: IToken
+  public tokenSafe!: IToken
+  public tokenSafePrev!: IToken
 
   public deep = 0
   public i = 0
@@ -78,11 +111,11 @@ export class Tokenizer {
 
   constructor(
     readonly source: string,
-    readonly options: ITokenizerOptions = {},
+    options: ITokenizerOptions = {},
     __plugins: ITokenizerPluginFn[] = [],
     __typings: ITokenizerTypingFn[] = []
   ) {
-    options = { ...TOKENIZER_OPTIONS, ...(options || {}) }
+    this.options = options = { ...TOKENIZER_OPTIONS, ...(options || {}) }
     const plugins = __plugins.map((v) => v(this))
     const typings = __typings.map((v) => v(this))
 
@@ -114,8 +147,8 @@ export class Tokenizer {
     this.next = (count: number = 0): boolean => next(count) || !this.eof()
 
     let num = 0
-    let tkn: IToken
     const val = {}
+    const tkns = this.tokens
     this.save = (
       type?: string,
       value: any = val,
@@ -123,20 +156,26 @@ export class Tokenizer {
       lastly: boolean = true,
       pushIt = true
     ): any => {
+      let tkn: IToken = this.token
       if (tkn && (tkn.type || tkn.type !== type)) {
-        typings.forEach((typing) => typing(tkn))
+        typings.forEach((typing) => typing(this.token))
         if (tkn.value === val) tkn.value = tkn.raw
       }
 
       if (raw) {
         if (type || !tkn || tkn.type) {
-          tkn = this.token = new Token(this.deep, raw, type, flags, value, num)
+          tkn = this.token = new Token(this.deep, raw, type, flags, value)
+          defineProperty(tkn, 'id', { get: () => indexOf(tkns, tkn) })
+          tkn.start = num
 
           if (options.loc) {
             tkn.loc = { start: { ...locStart }, end: { ...locEnd } }
           }
-          if (lastly) this.tokenLast = tkn
-          if (pushIt) this.tokens.push(tkn)
+          if (lastly) {
+            this.tokenSafePrev = this.tokenSafe
+            this.tokenSafe = tkn
+          }
+          if (pushIt) tkns.push(tkn)
         } else {
           tkn.raw += raw
           if (options.loc) tkn.loc!.end = { ...locEnd }

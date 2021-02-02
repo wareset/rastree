@@ -55,7 +55,7 @@ export const pluginWhiteSpace: ITokenizerPluginFn = (
 export const pluginWhiteSpaceFast: ITokenizerPluginFn = (
   self: ITokenizer
 ) => (): boolean =>
-  isLineTerminator(self.raw()) && !createSpaces(self, TYPE_WHITE_SPACE, noop)
+  isWhiteSpace(self.raw()) && !createSpaces(self, TYPE_WHITE_SPACE, noop)
 
 /* FORMAT_CONTROL */
 export const pluginFormatControl: ITokenizerPluginFn = (

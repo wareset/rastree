@@ -14,7 +14,7 @@ export const typingReservedWord: ITokenizerTypingFn = () => (
   token: IToken
 ): any => {
   const value = token.raw
-  const push = (v: string): any => token.flags.push(v)
+  const push = token.setFlags.bind(token)
   if (
     !token.type! &&
     ((isReservedWord(value) && push(RESERVED_WORD)) ||

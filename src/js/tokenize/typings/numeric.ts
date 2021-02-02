@@ -59,7 +59,7 @@ export const typingNumeric: ITokenizerTypingFn = () => (token: IToken): any => {
     token.type = TYPE_NUMERIC
     token.value = createNumericLiteralValue(value)
 
-    const push = (v: string): any => token.flags.push(v)
+    const push = token.setFlags.bind(token)
     push(LITERAL)
 
     if (isDecimalLiteral(value)) push(DECIMAL_LITERAL)

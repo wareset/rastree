@@ -6,7 +6,7 @@ import { TYPE_PUNCTUATOR } from '../../../flags'
 
 export const isNotPunctuator = (
   self: ITokenizer,
-  last = self.tokenLast
+  last = self.tokenSafe
 ): boolean =>
   !last ||
   test(/case|return/, last.raw) ||

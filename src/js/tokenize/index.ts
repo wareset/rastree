@@ -80,12 +80,15 @@ export const tokenize = (
       pluginSingleString,
       /* TEMPLATE */
       pluginTemplate,
+
+      /* SPACES */
       /* LINE_TERMINATOR */
       pluginLineTerminator,
       /* WHITE_SPACE */
       pluginWhiteSpace,
       /* FORMAT_CONTROL */
       pluginFormatControl,
+
       /* BRACKETS */
       pluginBrackets,
       /* REGULAR_EXPRESSION */

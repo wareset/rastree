@@ -102,7 +102,7 @@ const createJsxCloseOpeningTagOrContent = (
   TYPE = ''
 ): any => {
   self.save(TYPE)
-  if (self.tokenLast.raw === '>') self.deep++, (TEMP_OPENER[0] = false)
+  if (self.token.raw === '>') self.deep++, (TEMP_OPENER[0] = false)
   TEMP = false
   // prettier-ignore
   $: while (!self.eof()) {

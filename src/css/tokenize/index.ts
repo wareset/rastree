@@ -1,15 +1,14 @@
 /* eslint-disable max-len */
 import tokenizer from '../../lib/tokenizer'
 import { ITokens, ITokenizerOptions } from '../../lib/tokenizer'
+import { cssify } from '../lib/cssify'
 
-export interface ITokenizerCssOptions extends ITokenizerOptions {
-  // jsx?: boolean
-  // customTemplate?: boolean | [string | RegExp, string | RegExp]
+export interface ITokenizeCssOptions extends ITokenizerOptions {
+  punctuators?: boolean
 }
 
-const TOKENIZER_CSS_OPTIONS: ITokenizerCssOptions = {
-  // jsx: true,
-  // customTemplate: false
+const TOKENIZE_CSS_OPTIONS: ITokenizeCssOptions = {
+  punctuators: true
 }
 
 /*
@@ -22,65 +21,69 @@ import {
 } from '../../js/tokenize/plugins/comment'
 /* STRING */
 import {
-  pluginDoubleString,
-  pluginSingleString,
-  pluginTemplateString
+  pluginCssDoubleString,
+  pluginCssSingleString,
+  pluginCssTemplateString
 } from './plugins/css-string'
 /* SPACES */
-import {
-  pluginLineTerminatorFast,
-  pluginWhiteSpaceFast,
-  pluginFormatControlFast
-} from '../../js/tokenize/plugins/spaces'
+// import {
+//   pluginLineTerminator,
+//   pluginWhiteSpace,
+//   pluginFormatControl
+// } from '../../js/tokenize/plugins/spaces'
 /* BRACKETS */
-import { pluginBrackets } from '../../js/tokenize/plugins/brackets'
+import { pluginCssBrackets, pluginCssFixBrackets } from './plugins/css-brackets'
 /* PUNCTUATOR */
 import {
-  pluginColonPunctuator,
-  pluginSemicolonPunctuator
+  // pluginCssColonPunctuator,
+  pluginCssSemicolonPunctuator
 } from './plugins/css-colons'
 
 /*
 TYPINGS
 */
 /* TYPING_CSS_NORMALIZE */
-import { typingCssNormalize } from './typings/css-normalize'
+import { typingCssNormalizeFactory } from './typings/css-normalize'
 
 export const tokenize = (
   source: string,
-  options: ITokenizerCssOptions = TOKENIZER_CSS_OPTIONS
+  options?: ITokenizeCssOptions
 ): ITokens =>
-  (options = { ...TOKENIZER_CSS_OPTIONS, ...options }) &&
-  tokenizer(
-    source,
-    options,
-    [
-      /* COMMENT */
-      pluginMultiLineComment,
-      pluginSingleLineComment,
-      /* STRING */
-      pluginDoubleString,
-      pluginSingleString,
-      pluginTemplateString,
+  (options = { ...TOKENIZE_CSS_OPTIONS, ...(options || {}) }) &&
+  cssify(
+    tokenizer(
+      source,
+      options,
+      [
+        /* COMMENT */
+        pluginMultiLineComment,
+        pluginSingleLineComment,
 
-      /* SPACES */
-      /* LINE_TERMINATOR */
-      pluginLineTerminatorFast,
-      /* WHITE_SPACE */
-      pluginWhiteSpaceFast,
-      /* FORMAT_CONTROL */
-      pluginFormatControlFast,
+        /* STRING */
+        pluginCssDoubleString,
+        pluginCssSingleString,
+        pluginCssTemplateString,
 
-      /* BRACKETS */
-      pluginBrackets,
-      /* PUNCTUATOR */
-      pluginColonPunctuator,
-      pluginSemicolonPunctuator
-    ],
-    [
-      /* TYPING_CSS_NORMALIZE */
-      typingCssNormalize
-    ]
-  ).tokens
+        /* BRACKETS */
+        pluginCssBrackets,
+        pluginCssFixBrackets,
+        /* PUNCTUATOR */
+        // pluginCssColonPunctuator,
+        pluginCssSemicolonPunctuator
+
+        /* SPACES */
+        /* LINE_TERMINATOR */
+        // pluginLineTerminator,
+        /* WHITE_SPACE */
+        // pluginWhiteSpace,
+        /* FORMAT_CONTROL */
+        // pluginFormatControl
+      ],
+      [
+        /* TYPING_CSS_NORMALIZE */
+        typingCssNormalizeFactory(options.punctuators)
+      ]
+    ).tokens
+  )
 
 export default tokenize

@@ -1,4 +1,6 @@
 import { ITokenizer, ITokenizerPluginFn } from '../../../lib/tokenizer'
+
+import { SEPARATOR } from '../../flags'
 /* LINE_TERMINATOR */
 import { TYPE_LINE_TERMINATOR } from '../../flags'
 import {
@@ -29,7 +31,7 @@ const createSpaces = (
   flagsFn: any = noop
 ): any => {
   while (char() === char(1) && next());
-  save(type, raw(), flagsFn(char()), false, options.spaces)
+  save(type, raw(), [SEPARATOR, ...flagsFn(char())], !1, options.separators)
 }
 
 /* LINE_TERMINATOR */
@@ -39,11 +41,11 @@ export const pluginLineTerminator: ITokenizerPluginFn = (
   isLineTerminator(self.raw()) &&
   !createSpaces(self, TYPE_LINE_TERMINATOR, getLineTerminatorCodePoint)
 
-export const pluginLineTerminatorFast: ITokenizerPluginFn = (
-  self: ITokenizer
-) => (): boolean =>
-  isLineTerminator(self.raw()) &&
-  !createSpaces(self, TYPE_LINE_TERMINATOR, noop)
+// export const pluginLineTerminatorFast: ITokenizerPluginFn = (
+//   self: ITokenizer
+// ) => (): boolean =>
+//   isLineTerminator(self.raw()) &&
+//   !createSpaces(self, TYPE_LINE_TERMINATOR, noop)
 
 /* WHITE_SPACE */
 export const pluginWhiteSpace: ITokenizerPluginFn = (
@@ -52,10 +54,10 @@ export const pluginWhiteSpace: ITokenizerPluginFn = (
   isWhiteSpace(self.raw()) &&
   !createSpaces(self, TYPE_WHITE_SPACE, getWhiteSpaceCodePoint)
 
-export const pluginWhiteSpaceFast: ITokenizerPluginFn = (
-  self: ITokenizer
-) => (): boolean =>
-  isWhiteSpace(self.raw()) && !createSpaces(self, TYPE_WHITE_SPACE, noop)
+// export const pluginWhiteSpaceFast: ITokenizerPluginFn = (
+//   self: ITokenizer
+// ) => (): boolean =>
+//   isWhiteSpace(self.raw()) && !createSpaces(self, TYPE_WHITE_SPACE, noop)
 
 /* FORMAT_CONTROL */
 export const pluginFormatControl: ITokenizerPluginFn = (
@@ -64,7 +66,7 @@ export const pluginFormatControl: ITokenizerPluginFn = (
   isFormatControl(self.raw()) &&
   !createSpaces(self, TYPE_FORMAT_CONTROL, getFormatControlCodePoint)
 
-export const pluginFormatControlFast: ITokenizerPluginFn = (
-  self: ITokenizer
-) => (): boolean =>
-  isFormatControl(self.raw()) && !createSpaces(self, TYPE_FORMAT_CONTROL, noop)
+// export const pluginFormatControlFast: ITokenizerPluginFn = (
+//   self: ITokenizer
+// ) => (): boolean =>
+//   isFormatControl(self.raw()) && !createSpaces(self, TYPE_FORMAT_CONTROL, noop)

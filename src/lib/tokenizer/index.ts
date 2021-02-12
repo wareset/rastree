@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { defineProperty, size, includes, indexOf } from 'wareset-utilites'
+import { size, includes } from 'wareset-utilites'
 
 export type IToken = Token
 export type ITokens = Token[]
@@ -15,8 +15,9 @@ export interface ITokenizerConstruct {
 }
 
 export interface ITokenizerOptions {
+  // [key: string]: any
   loc?: boolean
-  spaces?: boolean
+  separators?: boolean
   comments?: boolean
   strict?: boolean
 }
@@ -30,7 +31,7 @@ export interface ITokenizerTypingFn {
 
 const TOKENIZER_OPTIONS: ITokenizerOptions = {
   loc: true,
-  spaces: false,
+  separators: false,
   comments: false,
   strict: true
 }
@@ -41,7 +42,7 @@ type ILoc = {
 }
 
 export class Token {
-  readonly id!: number
+  // readonly id!: number
 
   readonly range = [-1, -1]
   public loc?: ILoc
@@ -90,6 +91,7 @@ const error = (self: any, ...a: any[]): any => {
   console.error(self.token, ...a)
 }
 
+export const DEFAULT_DUMMY_VALUE = {}
 export class Tokenizer {
   readonly tokens: ITokens = []
   readonly options: ITokenizerOptions
@@ -138,34 +140,35 @@ export class Tokenizer {
       this.i = ++index
       const char = this.char() || ''
       raw += char
-      if (char === '\n') locEnd.line++, (locEnd.column = 0)
-      else locEnd.column++
+      if (char === '\n') {
+        locEnd.line++
+        locEnd.column = 0
+      } else locEnd.column++
       isBackslash = !!backslash
       if (!isBackslash && char === '\\') next(0, true)
-      if (count > 1) this.next(--count)
+      if (count > 1) this.next(+count - 1)
     }
-    this.next = (count: number = 0): boolean => next(count) || !this.eof()
+    this.next = (count: number = 0): boolean => !!next(count) || !this.eof()
 
     let num = 0
-    const val = {}
     const tkns = this.tokens
     this.save = (
       type?: string,
-      value: any = val,
+      value: any = DEFAULT_DUMMY_VALUE,
       flags: string[] = [],
       lastly: boolean = true,
       pushIt = true
-    ): any => {
+    ): void => {
       let tkn: IToken = this.token
       if (tkn && (tkn.type || tkn.type !== type)) {
         typings.forEach((typing) => typing(this.token))
-        if (tkn.value === val) tkn.value = tkn.raw
+        if (tkn.value === DEFAULT_DUMMY_VALUE) tkn.value = tkn.raw
       }
 
       if (raw) {
         if (type || !tkn || tkn.type) {
           tkn = this.token = new Token(this.deep, raw, type, flags, value)
-          defineProperty(tkn, 'id', { get: () => indexOf(tkns, tkn) })
+          // defineProperty(tkn, 'id', { get: () => indexOf(tkns, tkn) })
           tkn.start = num
 
           if (options.loc) {

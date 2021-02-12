@@ -1,5 +1,7 @@
 import { pluginStringFactory } from '../../../js/tokenize/plugins/string'
 
-export const pluginDoubleString = pluginStringFactory('"')
-export const pluginSingleString = pluginStringFactory("'")
-export const pluginTemplateString = pluginStringFactory('`')
+export { pluginStringFactory }
+
+export const pluginCssDoubleString = pluginStringFactory('"', false)
+export const pluginCssSingleString = pluginStringFactory("'", false)
+export const pluginCssTemplateString = pluginStringFactory('`', false)

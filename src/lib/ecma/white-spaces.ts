@@ -15,13 +15,13 @@ https://tc39.es/ecma262/#sec-white-space
 // U+FEFF	ZERO WIDTH NO-BREAK SPACE	<ZWNBSP>
 // Other category “Zs”	Any other Unicode “Space_Separator” code point	<USP>
 
-export const WHITE_SPACE_CODE_POINTS: any = {
-  '\u0009': ['CHARACTER TABULATION', 'TAB'],
-  '\u000B': ['LINE TABULATION', 'VT'],
-  '\u000C': ['FORM FEED', 'FF'],
-  '\u0020': ['SPACE', 'SP'],
-  '\u00A0': ['NO-BREAK SPACE', 'NBSP'],
-  '\uFEFF': ['ZERO WIDTH NO-BREAK SPACE', 'ZWNBSP']
+const WHITE_SPACE_CODE_POINTS: any = {
+  '\u0009': ['TAB'],
+  '\u000B': ['VT'],
+  '\u000C': ['FF'],
+  '\u0020': ['SP'],
+  '\u00A0': ['NBSP'],
+  '\uFEFF': ['ZWNBSP']
 }
 
 const __WHITE_SPACE__ = /^\s+$/

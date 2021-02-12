@@ -2,12 +2,12 @@
 import tokenizer from '../../lib/tokenizer'
 import { ITokens, ITokenizerOptions } from '../../lib/tokenizer'
 
-export interface ITokenizerJsOptions extends ITokenizerOptions {
+export interface ITokenizeJsOptions extends ITokenizerOptions {
   jsx?: boolean
   customTemplate?: boolean | [string | RegExp, string | RegExp]
 }
 
-const TOKENIZER_JS_OPTIONS: ITokenizerJsOptions = {
+const TOKENIZE_JS_OPTIONS: ITokenizeJsOptions = {
   jsx: true,
   customTemplate: false
 }
@@ -61,9 +61,9 @@ import { typingIdentifier } from './typings/identifier'
 
 export const tokenize = (
   source: string,
-  options: ITokenizerJsOptions = TOKENIZER_JS_OPTIONS
+  options?: ITokenizeJsOptions
 ): ITokens =>
-  (options = { ...TOKENIZER_JS_OPTIONS, ...options }) &&
+  (options = { ...TOKENIZE_JS_OPTIONS, ...(options || {}) }) &&
   tokenizer(
     source,
     options,

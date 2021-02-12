@@ -25,8 +25,8 @@ https://tc39.es/ecma262/#sec-unicode-format-control-characters
 // U+FEFF	ZERO WIDTH NO-BREAK SPACE	<ZWNBSP>	WhiteSpace
 
 export const FORMAT_CONTROL_CODE_POINTS: any = {
-  '\u200C': ['ZERO WIDTH NON-JOINER', 'ZWNJ'],
-  '\u200D': ['ZERO WIDTH JOINER', 'ZWJ']
+  '\u200C': ['ZWNJ'],
+  '\u200D': ['ZWJ']
 }
 
 export const isFormatControl = includesFactory(keys(FORMAT_CONTROL_CODE_POINTS))

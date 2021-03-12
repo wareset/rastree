@@ -95,8 +95,11 @@ export const isNumericLiteral = (s: string): boolean =>
     test(/^[.\d]/, s) &&
     !isNaN(createNumber(s))
   )
-
+// prettier-ignore
 export const createNumericLiteralValue = (value: string): any =>
   last(value) !== 'n'
     ? createNumber(value)
-    : trycatch(() => BigInt(createNumber(slice(value, 0, -1))), value, false)
+    : trycatch(
+      () => BigInt(createNumber(slice(value, 0, -1))),
+      () => BigInt(parseInt('' + createNumber(value)))
+    )

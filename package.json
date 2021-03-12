@@ -12,9 +12,7 @@
     "README.md",
     "__types__",
     "css",
-    "index.d.ts",
-    "index.js",
-    "index.mjs",
+    "html",
     "js",
     "lib"
   ],
@@ -28,9 +26,10 @@
   ],
   "scripts": {
     "test": "jest --",
+    "benchmark": "cd ./benchmark && npm run benchmark",
     "dester": "dester ./src ./ --babel",
     "build": "npm run -s dester",
-    "dev": "npm run -s dester -- -w",
+    "dev": "npm run -s dester -- -w --no-r",
     "pkg:name": "cat package.json | grep '\"name\":' | cut -d '\"' -f4",
     "pkg:version": "cat package.json | grep '\"version\":' | cut -d '\"' -f4",
     "git:get:tag": "echo $(npm run -s pkg:name)@$(npm run -s pkg:version)",
@@ -59,7 +58,7 @@
     "typescript": "4.x"
   },
   "dependencies": {
-    "enum-chars": "1.1.1",
-    "wareset-utilites": "0.2.5"
+    "enum-chars": "1.2.1",
+    "wareset-utilites": "0.2.11"
   }
 }

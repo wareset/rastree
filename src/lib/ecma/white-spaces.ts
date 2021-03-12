@@ -24,8 +24,8 @@ const WHITE_SPACE_CODE_POINTS: any = {
   '\uFEFF': ['ZWNBSP']
 }
 
-const __WHITE_SPACE__ = /^\s+$/
-export const isWhiteSpace = (s: string): boolean => test(__WHITE_SPACE__, s)
+const WHITE_SPACE = /^\s+$/
+export const isWhiteSpace = (s: string): boolean => test(WHITE_SPACE, s)
 
 export const getWhiteSpaceCodePoint = (s: string): [string, string?] =>
   WHITE_SPACE_CODE_POINTS[s] || ['USP']

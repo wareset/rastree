@@ -1,9 +1,9 @@
-import { test, includes, regexp, isRegExp } from 'wareset-utilites'
+import { test, includes, regexp, isRegExp, trim } from 'wareset-utilites'
 
-const __NUMERIC_FAST__ = /^\d+$/i
-export const isInteger = (n: string): boolean => test(__NUMERIC_FAST__, n)
+// const __NUMERIC_FAST__ = /^\d+$/i
+// export const isInteger = (n: string): boolean => test(__NUMERIC_FAST__, n)
 
-export const splitWords = (s: string): string[] => s.trim().split(/\s+/)
+export const splitWords = (s: string): string[] => trim(s).split(/\s+/)
 export const includesFactory = (arr: string[]) => (s: string): boolean =>
   includes(arr, s)
 

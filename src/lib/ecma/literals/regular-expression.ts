@@ -28,4 +28,4 @@ export const createRegularExpressionValue = (
   s: string,
   _ = s.lastIndexOf('/')
 ): RegExp =>
-  trycatch(() => new RegExp(slice(s, 1, _ - size(s)), slice(s, _ + 1)), s)
+  trycatch(() => new RegExp(slice(s, 1, _ - size(s)), slice(s, _ + 1)))

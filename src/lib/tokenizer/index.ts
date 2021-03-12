@@ -1,211 +1,385 @@
 /* eslint-disable max-len */
-import { size, includes } from 'wareset-utilites'
+import {
+  includes,
+  isVoid,
+  length,
+  push,
+  pop,
+  shift,
+  splice,
+  unshift,
+  last,
+  findLast,
+  forEach
+} from 'wareset-utilites'
 
-export type IToken = Token
-export type ITokens = Token[]
-export type ITokenizer = Tokenizer
+import {
+  ITokenizer,
+  ITokenizerOptions,
+  ITokenizerPluginFn,
+  ITokenizerTypingFn,
+  ITokenizerEnvFn,
+  IToken,
+  Token
+} from './lib/interfaces'
 
-export interface ITokenizerConstruct {
-  (
-    source: string,
-    options: ITokenizerOptions,
-    plugins: ITokenizerPluginFn[],
-    typings: ITokenizerTypingFn[]
-  ): Tokenizer
-}
+import {
+  TYPE_COMMENT,
+  TYPE_FORMAT_CONTROL,
+  TYPE_LINE_TERMINATOR,
+  TYPE_WHITE_SPACE
+} from '../flags'
 
-export interface ITokenizerOptions {
-  // [key: string]: any
-  loc?: boolean
-  separators?: boolean
-  comments?: boolean
-  strict?: boolean
-}
+import { ENV_STYLE, ENV_STYLE_CONCISE, ENV_TEMPLATE_CONCISE } from './env/types'
 
-export interface ITokenizerPluginFn {
-  (self: ITokenizer, ...any: any[]): (...a: any[]) => boolean
-}
-export interface ITokenizerTypingFn {
-  (self: ITokenizer, ...any: any[]): (token: IToken) => any
+/*
+PLUGINS
+*/
+/* ENV */
+import { pluginEnv } from './plugins/env'
+/* CUSTOM_TEMPLATE */
+import { pluginCustomTemplateFactory } from './plugins/custom-template'
+/* JSX */
+import { pluginJSXFactory } from './plugins/jsx'
+/* COMMENT */
+import {
+  pluginMultiLineComment,
+  pluginSingleLineComment
+} from './plugins/comment'
+/* STRING */
+import { pluginDoubleString, pluginSingleString } from './plugins/string'
+/* TEMPLATE */
+import { pluginTemplate } from './plugins/template'
+/* SPACES */
+import {
+  pluginLineTerminator,
+  pluginWhiteSpace,
+  pluginFormatControl
+  // pluginFastSeparator
+} from './plugins/spaces'
+/* BRACKETS */
+import { pluginBrackets } from './plugins/brackets'
+/* REGULAR_EXPRESSION */
+import { pluginRegularExpression } from './plugins/regular-expression'
+/* FIX_NUMERIC */
+import { fixNumeric } from './plugins/fix-numeric'
+/* PUNCTUATOR */
+import { pluginPunctuator } from './plugins/punctuator'
+
+/*
+TYPINGS
+*/
+/* TYPING_NULL */
+import { typingNull } from './typings/null'
+/* TYPING_BOOLEAN */
+import { typingBoolean } from './typings/boolean'
+/* TYPING_NUMERIC */
+import { typingNumeric } from './typings/numeric'
+/* TYPING_RESERVED_WORD */
+import { typingReservedWord } from './typings/reserved-word'
+/* TYPING_IDENTIFIER */
+import { typingIdentifier } from './typings/identifier'
+
+/*
+ENV
+*/
+import {
+  envStyleNormalize,
+  envStyleConciseNormalize,
+  envTemplateConciseNormalize
+} from './env/normalizes'
+
+import {
+  TYPE_JSX_CHILDLESS_ELEMENT,
+  TYPE_JSX_OPENING_ELEMENT,
+  TYPE_JSX_CLOSING_ELEMENT,
+  TYPE_JSX_TEXT,
+  TYPE_JSX_OPENING_ELEMENT_START,
+  TYPE_JSX_OPENING_ELEMENT_END,
+  TYPE_JSX_CLOSING_ELEMENT_START,
+  TYPE_JSX_CLOSING_ELEMENT_END
+} from '../flags'
+
+import {
+  TYPE_JSX_EXPRESSION,
+  TYPE_JSX_EXPRESSION_START,
+  TYPE_JSX_EXPRESSION_END
+} from '../flags'
+
+export const joinJSXElements = (self: ITokenizer): any => {
+  let TOKEN = self.token()
+  if (TOKEN.type === TYPE_JSX_TEXT) TOKEN = self.token(1)
+  const { type, deep, end, loc } = TOKEN
+  let isOpener: boolean
+  let isExpression: boolean
+
+  if (
+    (isOpener = type === TYPE_JSX_OPENING_ELEMENT_END) ||
+    (isExpression = type === TYPE_JSX_EXPRESSION_END) ||
+    type === TYPE_JSX_CLOSING_ELEMENT_END
+  ) {
+    const tokens = self.tokens()
+
+    let kEnd = 0
+    let kStart = 0
+    const tokenStart = findLast(tokens, (token, k): any => {
+      if (token! === TOKEN!) kEnd = k
+      else {
+        kStart = k
+        const type = token.type
+        // prettier-ignore
+        return isOpener
+          ? type === TYPE_JSX_OPENING_ELEMENT_START
+          : isExpression
+            ? type === TYPE_JSX_EXPRESSION_START
+            : type === TYPE_JSX_CLOSING_ELEMENT_START
+      }
+    })
+
+    const tokensSliced: IToken[] = []
+    forEach(splice(tokens, kStart + 1, kEnd - kStart), (token) => {
+      push(tokensSliced, token)
+      tokenStart.raw += token.raw
+    })
+    tokenStart.value = tokenStart.raw
+    tokenStart.end = end
+    if (loc) tokenStart.loc!.end = loc.end
+
+    if (isOpener) {
+      tokenStart.type =
+        tokenStart.deep === deep
+          ? TYPE_JSX_CHILDLESS_ELEMENT
+          : TYPE_JSX_OPENING_ELEMENT
+    } else if (isExpression!) {
+      tokenStart.type = TYPE_JSX_EXPRESSION
+      pop(tokensSliced)
+      tokenStart.children = tokensSliced
+    } else {
+      tokenStart.deep--
+      tokenStart.type = TYPE_JSX_CLOSING_ELEMENT
+      tokenStart.value = '</>'
+
+      let run = false
+      findLast(tokens, (token): any => {
+        if (token! === tokenStart!) run = true
+        else if (
+          token.deep === tokenStart.deep &&
+          token.type === TYPE_JSX_OPENING_ELEMENT
+        ) {
+          return true
+        } else if (run) token.deep--
+      })
+    }
+  }
 }
 
 const TOKENIZER_OPTIONS: ITokenizerOptions = {
   loc: true,
-  separators: false,
-  comments: false,
-  strict: true
+  // separators: false,
+  // comments: false,
+  values: false,
+  customTemplate: false,
+  env: 'script'
+  // strict: true
 }
 
-type ILoc = {
-  start: { line: number; column: number }
-  end: { line: number; column: number }
-}
+const HIDDEN_TYPES = [
+  TYPE_COMMENT,
+  TYPE_FORMAT_CONTROL,
+  TYPE_LINE_TERMINATOR,
+  TYPE_WHITE_SPACE
+]
 
-export class Token {
-  // readonly id!: number
+const EXTRA_ENVS = [ENV_STYLE, ENV_STYLE_CONCISE, ENV_TEMPLATE_CONCISE]
 
-  readonly range = [-1, -1]
-  public loc?: ILoc
+const DEFAULT_DUMMY_VALUE = {}
+const TOKEN_DUMMY: IToken = new Token(-999, '', '')
 
-  constructor(
-    public deep: number,
-    public raw: string,
-    public type?: string,
-    public flags: string[] = [],
-    public value?: any,
-    // public start: number = -1,
-    // public end: number = -1,
-    loc?: ILoc
-  ) {
-    if (loc) this.loc = loc
+export const tokenizer = (source: string, options?: ITokenizerOptions): any => {
+  options = options = { ...TOKENIZER_OPTIONS, ...(options || {}) }
+  const optionsLoc = !!options.loc
+
+  const optionsEnv = options.env
+
+  const __env: string[] = [optionsEnv!]
+  const env = (addOrRemove?: string | false): string[] => (
+    !isVoid(addOrRemove) &&
+      (addOrRemove === false ? shift(__env) : unshift(__env, addOrRemove)),
+    __env
+  )
+
+  let __deep = 0
+  const deep = (offset = 0): number => (__deep += offset)
+
+  const temp = { JSX_DEEPS: optionsEnv === 'template' ? [-1] : [] }
+
+  const PLUGINS: ITokenizerPluginFn[] = [
+    pluginEnv,
+
+    /* CUSTOM_TEMPLATE */
+    pluginCustomTemplateFactory(options.customTemplate),
+
+    /* JSX */
+    pluginJSXFactory(temp.JSX_DEEPS),
+
+    /* COMMENT */
+    pluginMultiLineComment,
+    pluginSingleLineComment,
+
+    /* STRING */
+    pluginDoubleString,
+    pluginSingleString,
+
+    /* TEMPLATE */
+    pluginTemplate,
+
+    /* SPACES */
+    /* LINE_TERMINATOR */
+    pluginLineTerminator,
+    /* WHITE_SPACE */
+    pluginWhiteSpace,
+    /* FORMAT_CONTROL */
+    pluginFormatControl,
+    /* BRACKETS */
+    pluginBrackets,
+    /* REGULAR_EXPRESSION */
+    pluginRegularExpression,
+    /* FIX_NUMERIC */
+    fixNumeric,
+    /* PUNCTUATOR */
+    pluginPunctuator
+  ]
+
+  const TYPINGS: ITokenizerTypingFn[] = [
+    /* TYPING_JSX */
+    // typingJSX,
+    /* TYPING_NULL */
+    typingNull,
+    /* TYPING_BOOLEAN */
+    typingBoolean,
+    /* TYPING_NUMERIC */
+    typingNumeric,
+    /* TYPING_RESERVED_WORD */
+    typingReservedWord,
+    /* TYPING_IDENTIFIER */
+    typingIdentifier
+  ]
+
+  const ENVS: ITokenizerEnvFn[] = [
+    envStyleNormalize,
+    envStyleConciseNormalize,
+    envTemplateConciseNormalize
+  ]
+
+  let plugins: Function[] = []
+  let typings: Function[] = []
+  let envs: Function[] = []
+
+  const tokens: any = []
+
+  let i = -1
+  const sourceLen = length(source)
+  const index = (offset = 0): number => (i += offset)
+
+  const char = (n = 0): string => source[i + n] || ''
+  let __raw: string = ''
+  const raw = (): string => __raw
+  let __slashed = false
+  const slashed = (): boolean => __slashed
+
+  let num = 0
+  let locStart = { line: 1, column: 0 }
+  const locEnd = { line: 1, column: 0 }
+
+  let __curChar = ''
+  const __next = (count: number, slashed?: boolean): void => {
+    ++i
+    __raw += __curChar = char()
+    if (__curChar === '\n') {
+      locEnd.line++
+      locEnd.column = 0
+    } else locEnd.column++
+    __slashed = !!slashed
+    if (!__slashed && __curChar === '\\') __next(0, true)
+    if (count > 1) __next(count - 1)
   }
+  const next = (count = 0): boolean => (__next(count), !!__curChar)
 
-  get start(): number {
-    return this.range[0]
-  }
-  set start(n: number) {
-    this.range[0] = n
-  }
+  let tkn: IToken | undefined
 
-  get end(): number {
-    return this.range[1]
-  }
-  set end(n: number) {
-    this.range[1] = n
-  }
+  const token = (offset = 0): IToken => last(tokens, offset) || TOKEN_DUMMY
+  const tokenSafe = (
+    offset: number = 0,
+    cb?: (token: Token, k: number, source: Token[]) => boolean
+  ): IToken => (
+    (offset = Math.abs(offset)),
+    findLast(
+      tokens,
+      (v: IToken, k, a) =>
+        !includes(HIDDEN_TYPES, v.type) && (!cb || cb(v, k, a)) && !offset--
+    ) || TOKEN_DUMMY
+  )
 
-  setFlags(...flags: string[]): number {
-    return this.flags.push(...flags)
-  }
-
-  hasFlag(flag: string): boolean {
-    return includes(this.flags, flag)
-  }
-
-  // get range(): [number, number] {
-  //   return [this.start, this.end]
-  // }
-}
-
-const error = (self: any, ...a: any[]): any => {
-  console.error(self.token, ...a)
-}
-
-export const DEFAULT_DUMMY_VALUE = {}
-export class Tokenizer {
-  readonly tokens: ITokens = []
-  readonly options: ITokenizerOptions
-  public token!: IToken
-  public tokenSafe!: IToken
-  public tokenSafePrev!: IToken
-
-  public deep = 0
-  public i = 0
-
-  readonly char: Function
-  readonly next: Function
-  readonly save: Function
-  readonly raw: Function
-
-  readonly eof: Function
-  readonly slashed: Function
-  readonly error: Function
-
-  constructor(
-    readonly source: string,
-    options: ITokenizerOptions = {},
-    __plugins: ITokenizerPluginFn[] = [],
-    __typings: ITokenizerTypingFn[] = []
-  ) {
-    this.options = options = { ...TOKENIZER_OPTIONS, ...(options || {}) }
-    const plugins = __plugins.map((v) => v(this))
-    const typings = __typings.map((v) => v(this))
-
-    let locStart = { line: 1, column: 0 }
-    const locEnd = { line: 1, column: 0 }
-
-    let raw = ''
-    this.raw = (): string => raw
-
-    this.error = (...a: any[]): any => error(this, ...a)
-
-    let index = -1
-    const length = size(source)
-    this.eof = (): boolean => index >= length
-    this.char = (offset = 0): string => this.source[index + offset]
-    let isBackslash = false
-    this.slashed = (): boolean => isBackslash
-
-    const next = (count: number, backslash?: boolean): any => {
-      this.i = ++index
-      const char = this.char() || ''
-      raw += char
-      if (char === '\n') {
-        locEnd.line++
-        locEnd.column = 0
-      } else locEnd.column++
-      isBackslash = !!backslash
-      if (!isBackslash && char === '\\') next(0, true)
-      if (count > 1) this.next(+count - 1)
-    }
-    this.next = (count: number = 0): boolean => !!next(count) || !this.eof()
-
-    let num = 0
-    const tkns = this.tokens
-    this.save = (
-      type?: string,
-      value: any = DEFAULT_DUMMY_VALUE,
-      flags: string[] = [],
-      lastly: boolean = true,
-      pushIt = true
-    ): void => {
-      let tkn: IToken = this.token
-      if (tkn && (tkn.type || tkn.type !== type)) {
-        typings.forEach((typing) => typing(this.token))
+  const save = (
+    type: string,
+    flags: string[] = [],
+    value: any = DEFAULT_DUMMY_VALUE
+  ): any => {
+    if ((tkn = last(tokens))) {
+      if (!__raw || tkn.type || tkn.type !== type) {
+        typings.forEach((typing) => typing(tkn))
         if (tkn.value === DEFAULT_DUMMY_VALUE) tkn.value = tkn.raw
       }
-
-      if (raw) {
-        if (type || !tkn || tkn.type) {
-          tkn = this.token = new Token(this.deep, raw, type, flags, value)
-          // defineProperty(tkn, 'id', { get: () => indexOf(tkns, tkn) })
-          tkn.start = num
-
-          if (options.loc) {
-            tkn.loc = { start: { ...locStart }, end: { ...locEnd } }
-          }
-          if (lastly) {
-            this.tokenSafePrev = this.tokenSafe
-            this.tokenSafe = tkn
-          }
-          if (pushIt) tkns.push(tkn)
-        } else {
-          tkn.raw += raw
-          if (options.loc) tkn.loc!.end = { ...locEnd }
-        }
-
-        locStart = { ...locEnd }
-        tkn.end = num = tkn.start + size(tkn.raw)
-        raw = ''
-      }
     }
 
-    // const run = (): any => {
-    //   this.next()
-    //   plugins.some((plugin) => plugin()) || this.save()
-    //   if (this.eof()) this.save('')
-    //   if (index < length) run()
-    // }
-    // run()
-    do {
-      this.next()
-      plugins.some((plugin) => plugin()) || this.save()
-      if (this.eof()) this.save('')
-    } while (index < length)
+    if (__raw) {
+      if (type || !tkn || tkn.type) {
+        tkn = new Token(__deep, __raw, type, flags, value)
+        tkn.start = num
+        if (optionsLoc) tkn.loc = { start: { ...locStart }, end: { ...locEnd } }
+        push(tokens, tkn)
+      } else {
+        tkn.raw += __raw
+        if (optionsLoc) tkn.loc!.end = { ...locEnd }
+      }
 
-    if (this.deep) this.error()
+      locStart = { ...locEnd }
+      tkn.end = num = tkn.start + length(tkn.raw)
+      __raw = ''
+    }
   }
+
+  const error = (...a: any[]): any => {
+    console.error('ERROR', ...a)
+  }
+
+  // prettier-ignore
+  const self: ITokenizer = {
+    temp, options,
+    tokens: (): Token[] => tokens,
+    source: (): string => source,
+    index, env,
+    token, tokenSafe,
+    char, next, deep, raw, save, slashed, error
+  }
+
+  plugins = PLUGINS.map((v) => v(self))
+  typings = TYPINGS.map((v) => v(self))
+  envs = ENVS.map((v) => v(self))
+
+  do {
+    next()
+    __raw ? plugins.some((plugin) => !__raw || plugin()) || save('') : save('')
+    // if (i >= sourceLen) __env.length = 0
+    envs.forEach((env) => env())
+    joinJSXElements(self)
+  } while (i < sourceLen)
+
+  if (!includes(EXTRA_ENVS, __env[0])) {
+    if ((tkn = last(tokens)) && tkn.deep) error()
+  }
+
+  return tokens
 }
 
-export const tokenizer: ITokenizerConstruct = (...a) => new Tokenizer(...a)
 export default tokenizer
